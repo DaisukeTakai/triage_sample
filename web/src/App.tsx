@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { TriageResponse, UrgencyLevel } from './lib/triageSchema'
 import { isTriageResponse, urgencyLabels } from './lib/triageSchema'
 import { runDummyTriage } from './lib/dummyProtocol'
-import { runOpenAiTriage } from './lib/openaiClient'
+import { runAzureOpenAiTriage } from './lib/azureOpenAiClient'
 import { systemPrompt } from './lib/systemPrompt'
 import './app-ui.css'
 
@@ -22,10 +22,12 @@ function urgencyToColor(urgency: UrgencyLevel): { bg: string; fg: string; border
 }
 
 function App() {
+  const [azureEndpoint, setAzureEndpoint] = useState('')
   const [apiKey, setApiKey] = useState('')
-  const [model, setModel] = useState('gpt-4o-mini')
+  const [deployment, setDeployment] = useState('gpt-5.2')
+  const [apiVersion, setApiVersion] = useState('2024-02-15-preview')
   const [reportText, setReportText] = useState('')
-  const [mode, setMode] = useState<'dummy' | 'openai'>('dummy')
+  const [mode, setMode] = useState<'dummy' | 'azure-openai'>('dummy')
   const [status, setStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [result, setResult] = useState<TriageResponse | null>(null)
@@ -33,9 +35,14 @@ function App() {
 
   const canRun = useMemo(() => {
     if (!reportText.trim()) return false
-    if (mode === 'openai' && !apiKey.trim()) return false
+    if (mode === 'azure-openai') {
+      if (!azureEndpoint.trim()) return false
+      if (!deployment.trim()) return false
+      if (!apiVersion.trim()) return false
+      if (!apiKey.trim()) return false
+    }
     return true
-  }, [apiKey, mode, reportText])
+  }, [apiKey, apiVersion, azureEndpoint, deployment, mode, reportText])
 
   async function onRun(): Promise<void> {
     setStatus('running')
@@ -50,7 +57,14 @@ function App() {
         return
       }
 
-      const r = await runOpenAiTriage({ apiKey, reportText, model, systemPrompt })
+      const r = await runAzureOpenAiTriage({
+        endpoint: azureEndpoint,
+        apiKey,
+        deployment,
+        apiVersion,
+        reportText,
+        systemPrompt,
+      })
       if (!isTriageResponse(r)) {
         throw new Error('Model output did not match expected schema.')
       }
@@ -80,34 +94,55 @@ function App() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
             <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <span>モード</span>
-              <select value={mode} onChange={(e) => setMode(e.target.value as 'dummy' | 'openai')}>
+              <select value={mode} onChange={(e) => setMode(e.target.value as 'dummy' | 'azure-openai')}>
                 <option value="dummy">ダミー（ローカル判定）</option>
-                <option value="openai">OpenAI API（JSONフロー生成）</option>
+                <option value="azure-openai">Azure OpenAI（JSONフロー生成）</option>
               </select>
             </label>
-            {mode === 'openai' && (
+            {mode === 'azure-openai' && (
               <>
                 <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span>Model</span>
+                  <span>Deployment</span>
                   <input
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    placeholder="gpt-4o-mini"
+                    value={deployment}
+                    onChange={(e) => setDeployment(e.target.value)}
+                    placeholder="gpt-5.2"
                     style={{ width: 160 }}
+                  />
+                </label>
+                <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <span>api-version</span>
+                  <input
+                    value={apiVersion}
+                    onChange={(e) => setApiVersion(e.target.value)}
+                    placeholder="2024-02-15-preview"
+                    style={{ width: 180 }}
                   />
                 </label>
               </>
             )}
           </div>
 
-          {mode === 'openai' && (
+          {mode === 'azure-openai' && (
             <div style={{ marginTop: 12 }}>
-              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>OpenAI API Key（このブラウザ内でのみ使用 / 保存しません）</label>
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6 }}>
+                Azure OpenAI Endpoint（例: https://xxxx.openai.azure.com）
+              </label>
+              <input
+                value={azureEndpoint}
+                onChange={(e) => setAzureEndpoint(e.target.value)}
+                placeholder="https://xxxx.openai.azure.com"
+                style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #d1d5db' }}
+              />
+
+              <label style={{ display: 'block', fontWeight: 600, marginBottom: 6, marginTop: 10 }}>
+                Azure OpenAI API Key（このブラウザ内でのみ使用 / 保存しません）
+              </label>
               <input
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-..."
+                placeholder="Azure OpenAI Key"
                 style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #d1d5db' }}
               />
             </div>

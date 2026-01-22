@@ -21,9 +21,18 @@ npm run dev
 ### モード
 
 - **ダミー（ローカル判定）**: OpenAI API を使わず、ローカルの簡易ルールで「それっぽい」判定フローを生成します（試作確認用）。
-- **OpenAI API（JSONフロー生成）**: OpenAI API Key をブラウザに直入力して、モデルに JSON を生成させます。
+- **Azure OpenAI（JSONフロー生成）**: Azure OpenAI をブラウザから直接呼び出し、モデルに JSON を生成させます。
+  - 入力が必要: `Endpoint` / `Deployment` / `api-version` / `API Key`
   - APIキーは保存しません（ブラウザ入力のみ）。
-  - GitHub Pages のような静的ホスティングで動かす想定のため、ブラウザから OpenAI に直接リクエストします。
+  - GitHub Pages のような静的ホスティングで動かす想定のため、ブラウザから Azure OpenAI に直接リクエストします。
+
+#### デフォルト値
+- Deployment: `gpt-5.2`
+- api-version: `2024-02-15-preview`
+
+#### 注意（CORS）
+環境/設定によっては、ブラウザから Azure OpenAI へ直接アクセスする際に CORS 等で失敗する場合があります。
+その場合は「サーバレスProxy（Cloudflare Workers / Functions 等）」を挟む構成に切り替えてください（DB不要）。
 
 ## GitHub Pages でのデプロイ
 
@@ -47,5 +56,5 @@ GITHUB_PAGES_BASE=/triage_sample/ npm run build
 
 - JSONスキーマ: `src/lib/triageSchema.ts`
 - ダミー判定: `src/lib/dummyProtocol.ts`
-- OpenAI クライアント（ブラウザ直叩き）: `src/lib/openaiClient.ts`
+- Azure OpenAI クライアント（ブラウザ直叩き）: `src/lib/azureOpenAiClient.ts`
 - システムプロンプト: `src/lib/systemPrompt.ts`
