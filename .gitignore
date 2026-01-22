@@ -1,0 +1,11 @@
+.DS_Store
+
+# local scratch
+tmp/
+
+# optional reference documents (not required for build)
+data/
+
+# Node/Vite
+web/node_modules/
+web/dist/
